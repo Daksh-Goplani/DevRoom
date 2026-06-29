@@ -1,6 +1,7 @@
 import express from 'express'
 import morgan from 'morgan'
 import connedtD from './config/db.js'
+import  userRoute from './routes/user.route.js'
 
 
 connedtD()
@@ -10,8 +11,6 @@ app.use(morgan('dev'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-app.get("/", (req,res)=>{
-    res.send("Hello World!")
-})
+app.use("/auth", userRoute)
 
 export default app
