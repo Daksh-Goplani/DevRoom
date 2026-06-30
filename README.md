@@ -1,43 +1,20 @@
 # DevRoom
 
-DevRoom is an AI-powered collaborative development workspace designed to make software development more interactive, productive, and team-oriented. It combines real-time communication, collaborative coding, and AI assistance into a single platform so developers can work without switching between multiple tools.
+DevRoom is a full-stack starter application for collaborative development workflows with user authentication and a modern React frontend.
 
-The platform is built around collaborative workspaces where team members can communicate, plan, review code, and work together on shared projects. In the long term, DevRoom aims to bring together human developers and AI as active contributors in the development workflow.
+This repository includes a Node.js backend with JWT authentication and a React + Vite frontend. The current implementation focuses on user registration, login, profile access, and logout handling with token blacklisting.
 
 ## Overview
 
-DevRoom is intended to become a full-stack environment for:
+DevRoom currently provides:
 
-- Team-based software development
-- Pair programming and code reviews
-- Hackathons and open-source collaboration
-- University and internship projects
-- AI-assisted feature development and debugging
-
-## Current Status
-
-The repository now includes both a backend foundation and a modern frontend setup for DevRoom, including:
-
-- User registration and login
-- JWT-based authentication
-- Cookie-based token storage
-- Protected profile access
+- User registration and login with JWT authentication
+- Cookie-based auth token storage
+- Protected profile endpoint
 - Password hashing and validation
-- MongoDB integration with Mongoose
-- Redis-based token blacklist support
-- A React + Vite frontend with Tailwind CSS
-- A basic starter UI running in the browser
-
-## Core Features
-
-- 🔐 Secure authentication and user management
-- 👥 Workspace-oriented collaboration model
-- 💬 Real-time team communication
-- 🧑‍💻 Collaborative development workflow
-- 🤖 AI-powered coding assistance
-- 📝 AI task assignment and support for development workflows
-- ⚡ Code generation, debugging, refactoring, and explanations
-- 🌐 Scalable full-stack architecture
+- MongoDB integration using Mongoose
+- Redis-based logout token blacklist support
+- React frontend with Vite routing for Home, Login, and Register screens
 
 ## Tech Stack
 
@@ -46,15 +23,16 @@ The repository now includes both a backend foundation and a modern frontend setu
 - Express.js
 - MongoDB with Mongoose
 - JWT for authentication
-- Redis for token blacklist handling
-- Cookie parser for cookie-based auth
+- Redis for logout token blacklist handling
+- Cookie Parser for HTTP-only token cookies
 - Express Validator for input validation
 
 ### Frontend
 - React
 - Vite
+- React Router DOM
 - Tailwind CSS
-- ESLint for code quality
+- ESLint
 
 ## Project Structure
 
@@ -69,6 +47,7 @@ Backend/
       db.js
     controller/
       user.controller.js
+      redis.service.js
     middleware/
       auth.middleware.js
     model/
@@ -86,36 +65,33 @@ Frontend/
     App.jsx
     main.jsx
     index.css
+    routes/
+      AppRoutes.jsx
+    screens/
+      Home.jsx
+      Login.jsx
+      Register.jsx
 ```
 
-## Authentication API
+## API Endpoints
 
-The backend currently exposes these auth routes:
+### Authentication routes
 
-- POST /auth/register - Register a new user
-- POST /auth/login - Login and receive a JWT token
-- GET /auth/profile - Access protected profile information
-- GET /auth/logout - Logout the current user
+- `POST /auth/register` - Register a new user
+- `POST /auth/login` - Login and receive a JWT cookie and response token
+- `GET /auth/profile` - Get the authenticated user profile
+- `GET /auth/logout` - Logout and blacklist the current token
 
 ## Getting Started
 
-### 1. Install backend dependencies
+### Backend setup
 
 ```bash
 cd Backend
 npm install
 ```
 
-### 2. Install frontend dependencies
-
-```bash
-cd ../Frontend
-npm install
-```
-
-### 3. Configure environment variables
-
-Create a `.env` file in the Backend directory with values for:
+Create a `.env` file in `Backend/` containing:
 
 ```env
 PORT=3000
@@ -126,32 +102,34 @@ REDIS_PORT=your_redis_port
 REDIS_PASSWORD=your_redis_password
 ```
 
-### 4. Start the backend
+Start the backend:
 
 ```bash
-cd Backend
 npm run dev
 ```
 
-### 5. Start the frontend
+### Frontend setup
 
 ```bash
 cd Frontend
+npm install
 npm run dev
 ```
 
-## Vision
+Open the frontend app in your browser using the Vite local URL shown in the terminal.
 
-Modern software development often requires developers to manage many disconnected tools at once. DevRoom aims to unify communication, coding, and AI assistance into one collaborative environment.
+## Notes
 
-The long-term goal is to evolve DevRoom into an intelligent workspace where humans and AI work together as equal contributors to build software faster and more effectively.
+- The backend uses `cookie-parser` to read the auth token from cookies.
+- Logout stores the token in Redis to prevent reuse after logout.
+- The frontend currently provides routes for `/`, `/login`, and `/register`.
 
-## Future Scope
+## Future Improvements
 
-Planned enhancements include:
+Potential next steps for DevRoom:
 
-- Real-time chat and shared rooms
-- Live collaborative editing
-- AI assistant integration inside conversations
-- Task assignment and workflow automation
-- Project dashboards and team management
+- Add live collaboration and chat
+- Expand user role and workspace management
+- Add task boards and project dashboards
+- Integrate AI assistance and code review workflows
+- Improve frontend styling and UX
