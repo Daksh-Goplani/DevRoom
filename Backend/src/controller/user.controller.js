@@ -85,14 +85,39 @@ const loginController = async (req, res) => {
     }
 }
 
-const profileController = async (req, res) => { 
+const profileController = async (req, res) => {
     res.status(200).json({
         user: req.user
     })
 }
 
+const logoutController = async (req, res) => {
+    try {
+
+        const token = req.cookies?.token || req.headers?.authorization?.split(' ')[1]
+
+        if(!token){
+            return res.status(400).json({
+                message: "Already logged out"
+            })
+        }
+
+        res.clearCookie('token');
+        redisClient.set(token, "logout", "EX", 60 * 60 * 24)
+
+        res.status(200).json({
+            message: "Logged out successfully"
+        })
+
+    } catch (err) {
+        console.log(err)
+        res.status(400).send(err.message)
+    }
+}
+
 export default {
     createUserController,
     loginController,
-    profileController
+    profileController,
+    logoutController
 }

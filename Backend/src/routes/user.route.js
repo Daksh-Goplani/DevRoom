@@ -19,4 +19,6 @@ router.post("/login",
 
 router.get("/profile",authMiddleware.authUser ,userController.profileController)
 
+router.get("/logout", userController.logoutController)
+
 export default router
