@@ -16,7 +16,7 @@ DevRoom is intended to become a full-stack environment for:
 
 ## Current Status
 
-The repository currently contains the backend foundation for DevRoom, including:
+The repository now includes both a backend foundation and a modern frontend setup for DevRoom, including:
 
 - User registration and login
 - JWT-based authentication
@@ -25,6 +25,8 @@ The repository currently contains the backend foundation for DevRoom, including:
 - Password hashing and validation
 - MongoDB integration with Mongoose
 - Redis-based token blacklist support
+- A React + Vite frontend with Tailwind CSS
+- A basic starter UI running in the browser
 
 ## Core Features
 
@@ -48,6 +50,12 @@ The repository currently contains the backend foundation for DevRoom, including:
 - Cookie parser for cookie-based auth
 - Express Validator for input validation
 
+### Frontend
+- React
+- Vite
+- Tailwind CSS
+- ESLint for code quality
+
 ## Project Structure
 
 ```text
@@ -69,6 +77,15 @@ Backend/
       user.route.js
     service/
       user.service.js
+
+Frontend/
+  package.json
+  index.html
+  vite.config.js
+  src/
+    App.jsx
+    main.jsx
+    index.css
 ```
 
 ## Authentication API
@@ -82,14 +99,21 @@ The backend currently exposes these auth routes:
 
 ## Getting Started
 
-### 1. Install dependencies
+### 1. Install backend dependencies
 
 ```bash
 cd Backend
 npm install
 ```
 
-### 2. Configure environment variables
+### 2. Install frontend dependencies
+
+```bash
+cd ../Frontend
+npm install
+```
+
+### 3. Configure environment variables
 
 Create a `.env` file in the Backend directory with values for:
 
@@ -102,9 +126,17 @@ REDIS_PORT=your_redis_port
 REDIS_PASSWORD=your_redis_password
 ```
 
-### 3. Start the server
+### 4. Start the backend
 
 ```bash
+cd Backend
+npm run dev
+```
+
+### 5. Start the frontend
+
+```bash
+cd Frontend
 npm run dev
 ```
 
