@@ -1,13 +1,14 @@
 import express from 'express'
 import morgan from 'morgan'
-import connedtD from './config/db.js'
+import connedtDb from './config/db.js'
 import userRoute from './routes/user.route.js'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import config from './config/config.js'
+import projectRoute from './routes/project.routes.js'
 
 
-connedtD()
+connedtDb()
 const app = express()
 
 app.use(cors({
@@ -20,5 +21,6 @@ app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
 
 app.use("/auth", userRoute)
+app.use("/projects", projectRoute)
 
 export default app

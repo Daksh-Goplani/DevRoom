@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 import config from './config.js'
 
-async function connedtD() {
+async function connectDB() {
     mongoose.connect(config.MONGO_URI)
         .then(() => {
             console.log("Connected to db")
@@ -11,4 +11,4 @@ async function connedtD() {
         })
 }
 
-export default connedtD
+export default connectDB
