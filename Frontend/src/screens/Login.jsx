@@ -1,7 +1,50 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import axiosInstance from "../config/axios";
 
 const Login = () => {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const navigate = useNavigate()
+
+  const extractErrorMessage = (err) => {
+    const data = err?.response?.data
+    const fallback = 'Login failed. Please try again.'
+    if (!data) return err?.message || fallback
+
+    if (Array.isArray(data.errors) && data.errors.length) {
+      return data.errors.map((item) => item.msg || item.message || JSON.stringify(item)).join(', ')
+    }
+
+    if (Array.isArray(data.error) && data.error.length) {
+      return data.error.map((item) => item.msg || item.message || JSON.stringify(item)).join(', ')
+    }
+
+    if (typeof data === 'string') {
+      return data
+    }
+
+    return data.message || data.error || fallback
+  }
+
+  function submitHandler(e) {
+    e.preventDefault()
+    setError('')
+    axiosInstance.post("/auth/login", {
+      email,
+      password
+    })
+      .then((res) => {
+        console.log(res.data)
+        navigate('/')
+      })
+      .catch((err) => {
+        console.log(err)
+        setError(extractErrorMessage(err))
+      })
+  }
+
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050816] px-4">
       {/* Background Blur */}
@@ -24,13 +67,21 @@ const Login = () => {
           </p>
         </div>
 
-        <form className="space-y-5">
+        <form
+          className="space-y-5"
+          onSubmit={submitHandler} >
+          {error && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {error}
+            </div>
+          )}
           <div>
             <label className="mb-2 block text-sm text-slate-300">
               Email
             </label>
 
             <input
+              onChange={(e) => setEmail(e.target.value)}
               type="email"
               placeholder="you@example.com"
               className="w-full rounded-xl border border-white/10 bg-[#111827]/70 px-4 py-3 text-white placeholder:text-slate-500 outline-none transition-all duration-300 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30"
@@ -46,6 +97,7 @@ const Login = () => {
             </div>
 
             <input
+              onChange={(e) => setPassword(e.target.value)}
               type="password"
               placeholder="••••••••"
               className="w-full rounded-xl border border-white/10 bg-[#111827]/70 px-4 py-3 text-white placeholder:text-slate-500 outline-none transition-all duration-300 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30"

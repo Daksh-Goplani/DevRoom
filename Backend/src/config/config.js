@@ -25,6 +25,10 @@ if (!process.env.REDIS_PASSWORD) {
     throw new Error("REDIS_PASSWORD is not defined in environment variable")
 }
 
+if (!process.env.CLIENT_URL) {
+    throw new Error("CLIENT_URL is not defined in environment variable")
+}
+
 const config = {
     PORT: process.env.PORT,
     MONGO_URI: process.env.MONGO_URI,
@@ -32,6 +36,7 @@ const config = {
     REDIS_HOST: process.env.REDIS_HOST,
     REDIS_PORT: process.env.REDIS_PORT,
     REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+    CLIENT_URL: process.env.CLIENT_URL
 }
 
 export default config

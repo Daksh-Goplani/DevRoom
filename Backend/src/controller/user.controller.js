@@ -1,7 +1,7 @@
 import userModel from "../model/user.model.js";
 import userService from "../service/user.service.js";
 import { validationResult } from 'express-validator'
-import redisClient from "./redis.service.js";
+import redisClient from "../service/redis.service.js";
 
 const createUserController = async (req, res) => {
 
@@ -21,6 +21,8 @@ const createUserController = async (req, res) => {
             sameSite: 'strict',
             maxAge: 24 * 60 * 60 * 1000
         })
+
+        delete user._doc.password
 
         res.status(201).json({
             message: "User created success",
@@ -72,6 +74,8 @@ const loginController = async (req, res) => {
             sameSite: 'strict',
             maxAge: 24 * 60 * 60 * 1000
         })
+
+        delete user._doc.password
 
         return res.status(200).json({
             message: "User logged in success",

@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 import config from '../config/config.js'
-import redisClient from '../controller/redis.service.js'
+import redisClient from '../service/redis.service.js'
 
 const authUser = async (req, res, next) => {
     try {
