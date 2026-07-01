@@ -1,50 +1,34 @@
 import React, { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axiosInstance from "../config/axios";
-import { UserContext } from "../context/user.context";
+import axiosInstance, { extractApiErrorMessage } from "../config/axios";
+import { UserContext } from "../context/User.context";
 
 const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
   const { setUser } = useContext(UserContext)
-
-  const extractErrorMessage = (err) => {
-    const data = err?.response?.data
-    const fallback = 'Login failed. Please try again.'
-    if (!data) return err?.message || fallback
-
-    if (Array.isArray(data.errors) && data.errors.length) {
-      return data.errors.map((item) => item.msg || item.message || JSON.stringify(item)).join(', ')
-    }
-
-    if (Array.isArray(data.error) && data.error.length) {
-      return data.error.map((item) => item.msg || item.message || JSON.stringify(item)).join(', ')
-    }
-
-    if (typeof data === 'string') {
-      return data
-    }
-
-    return data.message || data.error || fallback
-  }
 
   function submitHandler(e) {
     e.preventDefault()
     setError('')
+    setIsSubmitting(true)
+
     axiosInstance.post("/auth/login", {
       email,
       password
     })
       .then((res) => {
-        console.log(res.data)
         setUser(res.data.user)
         navigate('/')
       })
       .catch((err) => {
-        console.log(err)
-        setError(extractErrorMessage(err))
+        setError(extractApiErrorMessage(err, 'Login failed. Please try again.'))
+      })
+      .finally(() => {
+        setIsSubmitting(false)
       })
   }
 
@@ -108,9 +92,10 @@ const Login = () => {
           </div>
 
           <button
-            className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 py-3 font-semibold text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/30"
+            disabled={isSubmitting}
+            className="w-full rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 py-3 font-semibold text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            Sign In
+            {isSubmitting ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
