@@ -1,12 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../config/axios";
+import { UserContext } from "../context/user.context";
 
 const Register = () => {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
     const navigate = useNavigate()
+    const { setUser } = useContext(UserContext)
 
     const extractErrorMessage = (err) => {
         const data = err?.response?.data
@@ -37,6 +39,7 @@ const Register = () => {
         })
             .then((res) => {
                 console.log(res.data)
+                setUser(res.data.user)
                 navigate('/')
             })
             .catch((err) => {
