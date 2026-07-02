@@ -1,18 +1,34 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { UserContext } from '../context/User.context'
 import axiosInstance, { extractApiErrorMessage } from '../config/axios'
+import { useNavigate } from 'react-router-dom'
 
 const Home = () => {
-  const user  = useContext(UserContext)
+  const user = useContext(UserContext)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [projectName, setProjectName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState({ type: '', message: '' })
+  const [projects, setProjects] = useState([])
+  const navigate = useNavigate()
 
   const closeModal = () => {
     setIsModalOpen(false)
     setProjectName('')
     setFeedback({ type: '', message: '' })
+  }
+
+  const fetchProjects = async () => {
+    try {
+      const res = await axiosInstance.get('/projects/all')
+      setProjects(res?.data?.Projects || res?.data?.projects || [])
+    } catch (error) {
+      console.log(error)
+      setFeedback({
+        type: 'error',
+        message: extractApiErrorMessage(error, 'We could not load your projects right now. Please try again.'),
+      })
+    }
   }
 
   async function createProject(e) {
@@ -35,12 +51,17 @@ const Home = () => {
 
       setFeedback({ type: 'success', message: res?.data?.message || 'Project created successfully.' })
       closeModal()
+      fetchProjects()
     } catch (error) {
       setFeedback({ type: 'error', message: extractApiErrorMessage(error, 'We could not create your project right now. Please try again.') })
     } finally {
       setIsSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    fetchProjects()
+  }, [])
 
   return (
     <main className='min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_32%),linear-gradient(135deg,_#020617_0%,_#0f172a_45%,_#111827_100%)] px-4 py-6 text-slate-100 sm:px-6 lg:px-8'>
@@ -86,21 +107,46 @@ const Home = () => {
               </div>
             </div>
 
-            <div className='mt-6 rounded-2xl border border-dashed border-cyan-400/30 bg-slate-950/40 p-8 text-center'>
-              <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-300'>
-                <i className='ri-folder-2-line text-2xl'></i>
+            {projects.length > 0 ? (
+              <div className='mt-6 grid gap-4 md:grid-cols-2'>
+                {projects.map((project) => (
+                  <button
+                    key={project._id}
+                    type='button'
+                    onClick={() => navigate('/project', { state: { project } })}
+                    className='rounded-2xl border border-white/10 bg-slate-950/40 p-5 text-left transition hover:-translate-y-0.5 hover:border-cyan-400/40 hover:bg-slate-900/70'>
+                    <div className='flex items-start justify-between gap-3'>
+                      <div>
+                        <h3 className='text-lg font-semibold text-white'>{project.name}</h3>
+                        <p className='mt-2 text-sm leading-6 text-slate-400'>
+                          Open this workspace to view details and collaborate.
+                        </p>
+                      </div>
+                      <span className='inline-flex items-center rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-sm font-medium text-cyan-300'>
+                        <i className='ri-user-line mr-2'></i>
+                        {project.users?.length || 0}
+                      </span>
+                    </div>
+                  </button>
+                ))}
               </div>
-              <h3 className='mt-4 text-xl font-semibold'>No projects yet</h3>
-              <p className='mt-2 text-sm leading-6 text-slate-400'>
-                Create your first project to start organizing ideas, tasks, and collaboration in one place.
-              </p>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className='mt-6 inline-flex items-center rounded-2xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-500/20'>
-                <i className='ri-add-circle-line mr-2'></i>
-                Create your first project
-              </button>
-            </div>
+            ) : (
+              <div className='mt-6 rounded-2xl border border-dashed border-cyan-400/30 bg-slate-950/40 p-8 text-center'>
+                <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-300'>
+                  <i className='ri-folder-2-line text-2xl'></i>
+                </div>
+                <h3 className='mt-4 text-xl font-semibold'>No projects yet</h3>
+                <p className='mt-2 text-sm leading-6 text-slate-400'>
+                  Create your first project to start organizing ideas, tasks, and collaboration in one place.
+                </p>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className='mt-6 inline-flex items-center rounded-2xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-500/20'>
+                  <i className='ri-add-circle-line mr-2'></i>
+                  Create your first project
+                </button>
+              </div>
+            )}
           </div>
 
           <div className='space-y-6'>
