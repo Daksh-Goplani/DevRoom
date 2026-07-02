@@ -1,7 +1,7 @@
 import userModel from "../model/user.model.js";
 
 const createUser = async ({ email, password }) => {
-    if(!email || !password){
+    if (!email || !password) {
         throw new Error("Email and password are required")
     }
 
@@ -15,6 +15,14 @@ const createUser = async ({ email, password }) => {
     return user
 }
 
+const getAllUsers = async ({ userId }) => {
+    const users = await userModel.find({
+        _id: { $ne: userId }
+    });
+    return users;
+}
+
 export default {
-    createUser
+    createUser,
+    getAllUsers
 }

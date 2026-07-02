@@ -100,7 +100,7 @@ const logoutController = async (req, res) => {
 
         const token = req.cookies?.token || req.headers?.authorization?.split(' ')[1]
 
-        if(!token){
+        if (!token) {
             return res.status(400).json({
                 message: "Already logged out"
             })
@@ -119,9 +119,27 @@ const logoutController = async (req, res) => {
     }
 }
 
+const getAllUserController = async (req, res) => {
+    try {
+        const loggedInUser = await userModel.findOne({
+            email: req.user.email
+        })
+
+        const allUsers = await userService.getAllUsers({ userId: loggedInUser._id })
+
+        return res.status(200).json({
+            users: allUsers
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(400).send(err.message)
+    }
+}
+
 export default {
     createUserController,
     loginController,
     profileController,
-    logoutController
+    logoutController,
+    getAllUserController
 }
