@@ -74,9 +74,9 @@ const addUsersToProject = async ({ projectId, users, userId }) => {
                 $each: users
             }
         }
-    },{
+    }, {
         new: true
-    })
+    }).populate('users')
 
     return updatedProject
 }
