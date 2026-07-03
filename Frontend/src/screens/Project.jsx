@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../config/axios'
+import { initializeSocket, receiveMessage, sendMessage } from '../config/socket'
 
 const Project = () => {
   const location = useLocation()
@@ -28,6 +29,10 @@ const Project = () => {
       console.error(err)
     })
   }, [location.state])
+
+  useEffect(() => {
+    const socket = initializeSocket()
+  }, [])
 
   const handleAddUsers = async () => {
     if (selectedUserIds.length === 0 || !project?._id) return
