@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useContext } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../config/axios'
 import { initializeSocket, receiveMessage, sendMessage } from '../config/socket'
+import { UserContext } from '../context/User.context'
 
 const Project = () => {
   const location = useLocation()
@@ -11,6 +12,8 @@ const Project = () => {
   const [selectedUserIds, setSelectedUserIds] = useState([])
   const [allUsers, setAllUsers] = useState([])
   const [project, setProject] = useState(location.state?.project)
+  const [message, setMessage] = useState('')
+  const { user } = useContext(UserContext)
 
   useEffect(() => {
     const projectId = location.state?.project?._id
@@ -31,7 +34,11 @@ const Project = () => {
   }, [location.state])
 
   useEffect(() => {
-    const socket = initializeSocket()
+    const socket = initializeSocket(project._id)
+
+    receiveMessage('project-message', data => {
+      console.log(data)
+    })
   }, [])
 
   const handleAddUsers = async () => {
@@ -51,6 +58,17 @@ const Project = () => {
     }
   }
 
+  function send() {
+    console.log(user, 'sender')
+    sendMessage('project-message', {
+      projectId: project._id,
+      sender: user._id,
+      message: message,
+    })
+    setMessage("")
+    setMessage('')
+  }
+
   if (!project) {
     return (
       <div className='min-h-screen bg-slate-950 px-6 py-10 text-slate-100'>
@@ -59,7 +77,7 @@ const Project = () => {
           <p className='mt-3 text-sm text-slate-400'>Pick a project from the home screen to view its details.</p>
           <button
             onClick={() => navigate('/')}
-            className='mt-6 rounded-2xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-white'>
+            className='hover:cursor-pointer mt-6 rounded-2xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-white'>
             Back to home
           </button>
         </div>
@@ -84,7 +102,7 @@ const Project = () => {
               <div className='flex items-center justify-between gap-3'>
                 <button
                   onClick={() => navigate('/')}
-                  className='rounded-full border border-white/10 bg-white/10 p-2 text-slate-300 transition hover:bg-white/20'>
+                  className='hover:cursor-pointer rounded-full border border-white/10 bg-white/10 p-2 text-slate-300 transition hover:bg-white/20'>
                   <i className='ri-arrow-left-line text-lg'></i>
                 </button>
 
@@ -95,13 +113,13 @@ const Project = () => {
 
                 <button
                   onClick={() => setShowAddUsersModal(true)}
-                  className='rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-500/20'>
+                  className='hover:cursor-pointer rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-500/20'>
                   <i className="ri-user-add-line mr-1"></i>
                   Add
                 </button>
                 <button
                   onClick={() => setShowMembers(true)}
-                  className='rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-500/20'>
+                  className='hover:cursor-pointer rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-500/20'>
                   <i className='ri-group-line mr-1'></i>
                   Members
                 </button>
@@ -123,11 +141,15 @@ const Project = () => {
             <div className='border-t border-white/10 bg-slate-950/70 p-3 sm:p-4'>
               <div className='flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/80 px-3 py-2'>
                 <input
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
                   type='text'
                   placeholder='Write a message...'
                   className='flex-1 bg-transparent px-2 py-2 text-sm text-white outline-none placeholder:text-slate-500'
                 />
-                <button className='rounded-xl bg-cyan-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-400'>
+                <button
+                  onClick={send}
+                  className='hover:cursor-pointer rounded-xl bg-cyan-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-400'>
                   <i className='ri-send-plane-2-line'></i>
                 </button>
               </div>
@@ -163,7 +185,7 @@ const Project = () => {
 
                     <button
                       onClick={() => setShowMembers(false)}
-                      className="rounded-full border border-white/10 bg-white/10 p-2 hover:bg-white/20"
+                      className="hover:cursor-pointer rounded-full border border-white/10 bg-white/10 p-2 hover:bg-white/20"
                     >
                       <i className="ri-close-line text-lg"></i>
                     </button>
@@ -217,7 +239,7 @@ const Project = () => {
                     </div>
                     <button
                       onClick={() => setShowAddUsersModal(false)}
-                      className='rounded-full border border-white/10 bg-white/10 p-2 text-slate-300 transition hover:bg-white/20'>
+                      className='hover:cursor-pointer rounded-full border border-white/10 bg-white/10 p-2 text-slate-300 transition hover:bg-white/20'>
                       <i className='ri-close-line text-lg'></i>
                     </button>
                   </div>
@@ -273,13 +295,13 @@ const Project = () => {
                       setSelectedUserIds([])
                       setShowAddUsersModal(false)
                     }}
-                    className='rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/20'>
+                    className='hover:cursor-pointer rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/20'>
                     Cancel
                   </button>
                   <button
                     onClick={handleAddUsers}
                     disabled={selectedUserIds.length === 0}
-                    className='rounded-2xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed'>
+                    className='rounded-2xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer'>
                     Add Members
                   </button>
                 </div>
