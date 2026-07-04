@@ -91,7 +91,10 @@ const loginController = async (req, res) => {
 
 const profileController = async (req, res) => {
     try {
-        const user = await userModel.findOne({ email: req.user.email }).select('-password')
+        const user = req.user?.id
+            ? await userModel.findById(req.user.id).select('-password')
+            : await userModel.findOne({ email: req.user.email }).select('-password')
+
         if (!user) return res.status(404).json({ message: 'User not found' })
 
         res.status(200).json({

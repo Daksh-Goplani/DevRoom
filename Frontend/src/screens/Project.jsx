@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useContext } from 'react'
+import React, { useEffect, useState, useContext, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../config/axios'
-import { initializeSocket, receiveMessage, sendMessage } from '../config/socket'
+import { initializeSocket, receiveMessage, sendMessage, offMessage, disconnectSocket } from '../config/socket'
 import { UserContext } from '../context/User.context'
 
 const Project = () => {
@@ -13,7 +13,9 @@ const Project = () => {
   const [allUsers, setAllUsers] = useState([])
   const [project, setProject] = useState(location.state?.project)
   const [message, setMessage] = useState('')
+  const [messages, setMessages] = useState([])
   const { user } = useContext(UserContext)
+  const messageBox = useRef(null)
 
   useEffect(() => {
     const projectId = location.state?.project?._id
@@ -34,12 +36,26 @@ const Project = () => {
   }, [location.state])
 
   useEffect(() => {
+    if (!project?._id || !user) return
+
     const socket = initializeSocket(project._id)
 
-    receiveMessage('project-message', data => {
-      console.log(data)
-    })
-  }, [])
+    const handleMessage = (data) => {
+      setMessages((current) => [...current, {
+        senderId: data.sender,
+        senderName: data.senderName || data.senderEmail || 'Unknown',
+        message: data.message,
+        timestamp: data.timestamp || new Date().toISOString()
+      }])
+    }
+
+    receiveMessage('project-message', handleMessage)
+
+    return () => {
+      offMessage('project-message', handleMessage)
+      disconnectSocket()
+    }
+  }, [project?._id, user])
 
   const handleAddUsers = async () => {
     if (selectedUserIds.length === 0 || !project?._id) return
@@ -59,14 +75,27 @@ const Project = () => {
   }
 
   function send() {
-    console.log(user, 'sender')
-    sendMessage('project-message', {
+    if (!message.trim() || !project?._id || !user) return
+
+    const payload = {
       projectId: project._id,
       sender: user._id,
-      message: message,
-    })
-    setMessage("")
+      senderEmail: user.email,
+      senderName: user.name || user.email,
+      message: message.trim(),
+      timestamp: new Date().toISOString()
+    }
+
+    sendMessage('project-message', payload)
+    setMessages((current) => [...current, payload])
     setMessage('')
+  }
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      send()
+    }
   }
 
   if (!project) {
@@ -91,6 +120,43 @@ const Project = () => {
     members.map(member => (member?._id || member).toString())
   )
   const addableUsers = allUsers.filter(user => !currentProjectMemberIds.has(user._id?.toString()))
+
+  useEffect(() => {
+    if (!messageBox.current) return
+    messageBox.current.scrollTop = messageBox.current.scrollHeight
+  }, [messages])
+
+  const renderChatMessage = (msg, index) => {
+    const isOwnMessage = String(msg.sender) === String(user?._id);
+
+    return (
+      <div
+        key={`${msg.senderId}-${index}-${msg.timestamp}`}
+        className={`flex w-full ${isOwnMessage ? "justify-end" : "justify-start"
+          }`}
+      >
+        <div
+          className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${isOwnMessage
+              ? "bg-cyan-500/20 rounded-br-md"
+              : "bg-slate-800/80 rounded-bl-md"
+            }`}
+        >
+          <p
+            className={`text-sm font-medium ${isOwnMessage ? "text-cyan-200" : "text-slate-200"
+              }`}
+          >
+            {isOwnMessage
+              ? "You"
+              : msg.senderName || msg.senderEmail || "Unknown"}
+          </p>
+
+          <p className="mt-1 text-sm leading-6 text-slate-100">
+            {msg.message}
+          </p>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <main>
@@ -126,16 +192,15 @@ const Project = () => {
               </div>
             </div>
 
-            <div className='flex-1 space-y-3 overflow-y-auto bg-slate-900/60 p-4 sm:p-5'>
-              <div className='max-w-[85%] rounded-2xl rounded-bl-md bg-slate-800/80 px-4 py-3 shadow-sm'>
-                <p className='text-sm font-medium text-slate-200'>Welcome to the workspace</p>
-                <p className='mt-1 text-sm leading-6 text-slate-400'>Share updates, ideas, and quick notes with your teammates here.</p>
-              </div>
-
-              <div className='ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-cyan-500/20 px-4 py-3 shadow-sm'>
-                <p className='text-sm font-medium text-cyan-200'>You</p>
-                <p className='mt-1 text-sm leading-6 text-cyan-100'>Looking good. I’ll start the first task list soon.</p>
-              </div>
+            <div ref={messageBox} className='flex-1 space-y-3 overflow-y-auto bg-slate-900/60 p-4 sm:p-5 scrollbar-none scroll-smooth'>
+              {messages.length === 0 ? (
+                <div className='max-w-[85%] rounded-2xl rounded-bl-md bg-slate-800/80 px-4 py-3 shadow-sm'>
+                  <p className='text-sm font-medium text-slate-200'>Welcome to the project chat</p>
+                  <p className='mt-1 text-sm leading-6 text-slate-400'>Send a message to start a conversation with your teammates.</p>
+                </div>
+              ) : (
+                messages.map(renderChatMessage)
+              )}
             </div>
 
             <div className='border-t border-white/10 bg-slate-950/70 p-3 sm:p-4'>
@@ -143,6 +208,7 @@ const Project = () => {
                 <input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   type='text'
                   placeholder='Write a message...'
                   className='flex-1 bg-transparent px-2 py-2 text-sm text-white outline-none placeholder:text-slate-500'
