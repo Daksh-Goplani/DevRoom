@@ -16,6 +16,19 @@ const Project = () => {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState([])
   const { user } = useContext(UserContext)
+  const [fileTree, setFileTree] = useState({
+    "app.js": {
+      content: `const express = require('express');`
+    },
+    "package.json": {
+      content: `{
+                        "name": "temp-server",
+                        }`
+    }
+  })
+
+  const [currentFile, setCurrentFile] = useState(null)
+  const [openFiles, setOpenFiles] = useState([])
   const messageBox = useRef(null)
 
   useEffect(() => {
@@ -135,7 +148,7 @@ const Project = () => {
   const addableUsers = allUsers.filter(user => !currentProjectMemberIds.has(user._id?.toString()))
 
   useEffect(() => {
-    if (!messageBox.current) return    
+    if (!messageBox.current) return
     messageBox.current.scrollTop = messageBox.current.scrollHeight
   }, [messages])
 
@@ -150,8 +163,8 @@ const Project = () => {
       >
         <div
           className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${isOwnMessage
-              ? "bg-cyan-500/20 rounded-br-md"
-              : "bg-slate-800/80 rounded-bl-md"
+            ? "bg-cyan-500/20 rounded-br-md"
+            : "bg-slate-800/80 rounded-bl-md"
             }`}
         >
           <p
@@ -163,14 +176,14 @@ const Project = () => {
               : msg.senderName || msg.senderEmail || "Unknown"}
           </p>
 
-                  <div className="mt-2 prose prose-invert prose-sm max-w-none
+          <div className="mt-2 prose prose-invert prose-sm max-w-none
           prose-p:my-2
           prose-pre:p-4
         ">
-                    <MarkdownRenderer>
-                      {msg.message}
-                    </MarkdownRenderer>
-                  </div>
+            <MarkdownRenderer>
+              {msg.message}
+            </MarkdownRenderer>
+          </div>
         </div>
       </div>
     );
@@ -299,7 +312,69 @@ const Project = () => {
 
           </section>
 
-          <aside className='hidden flex-1 lg:block' />
+          <div className='hidden flex-1 lg:block' >
+            <section className="right  bg-red-50 flex-grow h-full flex">
+
+              <div className="explorer h-full max-w-64 min-w-52 bg-slate-200">
+                <div className="file-tree w-full">
+                  {
+                    Object.keys(fileTree).map((file, index) => (
+                      <button
+                        onClick={() => {
+                          setCurrentFile(file)
+                          setOpenFiles([...new Set([...openFiles, file])])
+                        }}
+                        className="tree-element cursor-pointer p-2 px-4 flex items-center gap-2 bg-slate-300 w-full">
+                        <p
+                          className='font-semibold text-lg'
+                        >{file}</p>
+                      </button>))
+
+                  }
+                </div>
+
+              </div>
+
+              {currentFile && (
+                <div className="code-editor flex flex-col flex-grow h-full">
+
+                  <div className="top flex">
+                    {
+                      openFiles.map((file, index) => (
+                        <button
+                          onClick={() => setCurrentFile(file)}
+                          className={`open-file cursor-pointer p-2 px-4 flex items-center w-fit gap-2 bg-slate-300 ${currentFile === file ? 'bg-slate-400' : ''}`}>
+                          <p
+                            className='font-semibold text-lg'
+                          >{file}</p>
+                        </button>
+                      ))
+                    }
+                  </div>
+                  <div className="bottom flex flex-grow">
+                    {
+                      fileTree[currentFile] && (
+                        <textarea
+                          value={fileTree[currentFile].content}
+                          onChange={(e) => {
+                            setFileTree({
+                              ...fileTree,
+                              [currentFile]: {
+                                content: e.target.value
+                              }
+                            })
+                          }}
+                          className='w-full text-amber-500 h-full p-4 bg-slate-50 outline-none border-none'
+                        ></textarea>
+                      )
+                    }
+                  </div>
+
+                </div>
+              )}
+
+            </section>
+          </div>
         </div>
 
         {/* Add Users Modal */}
@@ -394,6 +469,7 @@ const Project = () => {
           </>
         )}
       </div>
+
     </main>
   )
 }
