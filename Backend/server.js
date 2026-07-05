@@ -5,6 +5,7 @@ import { Server } from 'socket.io'
 import jwt from 'jsonwebtoken'
 import mongoose from 'mongoose'
 import projectModel from './src/model/project.model.js'
+import { generateResult } from './src/service/ai.service.js'
 
 const parseCookies = (cookieHeader = '') =>
     cookieHeader
@@ -62,11 +63,30 @@ io.on('connection', socket => {
     socket.join(socket.roomId)
 
     socket.on('project-message', async data => {
-        console.log(data)
+
+        const message = data.message
+        const aiIsPresentInMessage = message.includes('@ai');
         socket.broadcast.to(socket.roomId).emit('project-message', data)
+
+        if (aiIsPresentInMessage) {
+
+
+            const prompt = message.replace('@ai', '');
+            const result = await generateResult(prompt);
+
+
+            io.to(socket.roomId).emit('project-message', {
+                message: result,
+                sender: {
+                    _id: 'ai',
+                    email: 'AI'
+                }
+            })
+            return
+        }
     })
 
-    socket.on('disconnect', () => { 
+    socket.on('disconnect', () => {
         console.log('user disconnected')
         socket.leave(socket.roomId)
     })

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../config/axios'
 import { initializeSocket, receiveMessage, sendMessage, offMessage, disconnectSocket } from '../config/socket'
 import { UserContext } from '../context/User.context'
+import MarkdownRenderer from '../components/MarkdownRenderer'
 
 const Project = () => {
   const location = useLocation()
@@ -41,10 +42,22 @@ const Project = () => {
     const socket = initializeSocket(project._id)
 
     const handleMessage = (data) => {
+      let incomingMessage = data.message
+
+      if (data.sender === 'ai' || data.sender?._id === 'ai' || data.senderEmail === 'AI' || data.senderName === 'AI') {
+        if (typeof incomingMessage === 'string') {
+          try {
+            incomingMessage = JSON.parse(incomingMessage)
+          } catch (err) {
+            // Keep original string if it's not valid JSON
+          }
+        }
+      }
+
       setMessages((current) => [...current, {
         senderId: data.sender,
-        senderName: data.senderName || data.senderEmail || 'Unknown',
-        message: data.message,
+        senderName: data.senderName || data.senderEmail || data.sender.email || 'Unknown',
+        message: incomingMessage,
         timestamp: data.timestamp || new Date().toISOString()
       }])
     }
@@ -122,7 +135,7 @@ const Project = () => {
   const addableUsers = allUsers.filter(user => !currentProjectMemberIds.has(user._id?.toString()))
 
   useEffect(() => {
-    if (!messageBox.current) return
+    if (!messageBox.current) return    
     messageBox.current.scrollTop = messageBox.current.scrollHeight
   }, [messages])
 
@@ -150,9 +163,14 @@ const Project = () => {
               : msg.senderName || msg.senderEmail || "Unknown"}
           </p>
 
-          <p className="mt-1 text-sm leading-6 text-slate-100">
-            {msg.message}
-          </p>
+                  <div className="mt-2 prose prose-invert prose-sm max-w-none
+          prose-p:my-2
+          prose-pre:p-4
+        ">
+                    <MarkdownRenderer>
+                      {msg.message}
+                    </MarkdownRenderer>
+                  </div>
         </div>
       </div>
     );

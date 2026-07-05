@@ -10,11 +10,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.2",
     "axios": "^1.18.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-markdown": "^8.0.7",
     "react-router-dom": "^7.18.1",
+    "react-syntax-highlighter": "^16.1.1",
+    "rehype-sanitize": "^5.0.1",
+    "remark-gfm": "^3.0.1",
     "remixicon": "^4.9.1",
     "socket.io-client": "^4.8.3",
     "tailwindcss": "^4.3.2"
