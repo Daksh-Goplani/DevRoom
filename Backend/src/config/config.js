@@ -29,6 +29,10 @@ if (!process.env.CLIENT_URL) {
     throw new Error("CLIENT_URL is not defined in environment variable")
 }
 
+if (!process.env.GOOGLE_AI_KEY) {
+    throw new Error("GOOGLE_AI_KEY is not defined in environment variable")
+}
+
 const config = {
     PORT: process.env.PORT,
     MONGO_URI: process.env.MONGO_URI,
@@ -36,7 +40,8 @@ const config = {
     REDIS_HOST: process.env.REDIS_HOST,
     REDIS_PORT: process.env.REDIS_PORT,
     REDIS_PASSWORD: process.env.REDIS_PASSWORD,
-    CLIENT_URL: process.env.CLIENT_URL
+    CLIENT_URL: process.env.CLIENT_URL,
+    GOOGLE_AI_KEY: process.env.GOOGLE_AI_KEY
 }
 
 export default config

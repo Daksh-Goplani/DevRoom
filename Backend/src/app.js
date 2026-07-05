@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import config from './config/config.js'
 import projectRoute from './routes/project.routes.js'
+import aiRoutes from './routes/ai.routes.js'
 
 
 connedtDb()
@@ -22,5 +23,6 @@ app.use(cookieParser())
 
 app.use("/auth", userRoute)
 app.use("/projects", projectRoute)
+app.use("/ai", aiRoutes)
 
 export default app
