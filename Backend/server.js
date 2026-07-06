@@ -20,7 +20,7 @@ const parseCookies = (cookieHeader = '') =>
         }, {})
 
 const server = http.createServer(app)
-const port = config.PORT || 3000
+const port = config.PORT || 3001
 const io = new Server(server, {
     cors: {
         origin: config.CLIENT_URL,

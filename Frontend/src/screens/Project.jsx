@@ -18,23 +18,13 @@ const Project = () => {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState([])
   const { user } = useContext(UserContext)
-  const [fileTree, setFileTree] = useState(null)
+  const [fileTree, setFileTree] = useState({})
   const [webContainer, setWebContainer] = useState(null)
-
-  // {
-  //   "app.js": {
-  //     contents: `const express = require('express');`
-  //   },
-  //   "package.json": {
-  //     contents: `{
-  //                       "name": "temp-server",
-  //                       }`
-  //   }
-  // }
 
   const [currentFile, setCurrentFile] = useState(null)
   const [openFiles, setOpenFiles] = useState([])
   const messageBox = useRef(null)
+  const [iframeUrl, setIframeUrl] = useState(null)
 
   const normalizeFileTree = (tree) => {
     if (!tree || typeof tree !== 'object') return null
@@ -48,6 +38,25 @@ const Project = () => {
       acc[fileName] = {
         ...entry,
         contents,
+      }
+
+      return acc
+    }, {})
+  }
+
+  const prepareForWebContainer = (tree) => {
+    if (!tree || typeof tree !== 'object') return {}
+
+    return Object.entries(tree).reduce((acc, [fileName, fileData]) => {
+      if (!fileData || typeof fileData !== 'object') return acc
+
+      const entry = fileData.file && typeof fileData.file === 'object' ? fileData.file : fileData
+      const contents = typeof entry?.contents === 'string' ? entry.contents : ''
+
+      acc[fileName] = {
+        file: {
+          contents
+        }
       }
 
       return acc
@@ -93,6 +102,12 @@ const Project = () => {
   }, [location.state])
 
   useEffect(() => {
+    if (project?.file && typeof project.file === 'object') {
+      setFileTree(project.file)
+    }
+  }, [project])
+
+  useEffect(() => {
     if (!project?._id || !user) return
 
     const socket = initializeSocket(project._id)
@@ -104,14 +119,18 @@ const Project = () => {
       })
     }
 
-    const handleMessage = (data) => {
+    const handleMessage = async (data) => {
       const incomingMessage = parseIncomingMessage(data.message)
 
       if (incomingMessage?.fileTree && typeof incomingMessage.fileTree === 'object') {
-        setFileTree(normalizeFileTree(incomingMessage.fileTree))
-      }
+        const normalized = normalizeFileTree(incomingMessage.fileTree);
 
-      webContainer?.mount(incomingMessage.fileTree)
+        if (normalized && Object.keys(normalized).length > 0) {
+          setFileTree(normalized);
+          const mountTree = prepareForWebContainer(normalized);
+          await webContainer?.mount(mountTree);
+        }
+      }
 
       setMessages((current) => [...current, {
         senderId: data.sender,
@@ -367,6 +386,7 @@ const Project = () => {
                   {
                     Object.keys(fileTree || {}).map((file, index) => (
                       <button
+                        key={index}
                         onClick={() => {
                           setCurrentFile(file)
                           setOpenFiles([...new Set([...openFiles, file])])
@@ -382,13 +402,15 @@ const Project = () => {
 
               </div>
 
-              {currentFile && (
-                <div className="code-editor flex flex-col flex-grow h-full">
+              <div className="code-editor flex flex-col flex-grow h-full">
 
-                  <div className="top flex">
+                <div className="top flex justify-between w-full">
+
+                  <div className="files flex">
                     {
                       openFiles.map((file, index) => (
                         <button
+                          key={index}
                           onClick={() => setCurrentFile(file)}
                           className={`open-file cursor-pointer p-2 px-4 flex items-center w-fit gap-2 bg-slate-700 ${currentFile === file ? 'bg-slate-600' : ''}`}>
                           <p
@@ -398,41 +420,92 @@ const Project = () => {
                       ))
                     }
                   </div>
-                  <div className="bottom flex flex-grow">
-                    {
-                      fileTree[currentFile] && (
-                        <div className="code-editor-area h-full overflow-auto flex-grow bg-slate-950">
-                          <pre
-                            className="hljs h-full">
-                            <code
-                              className="hljs h-full outline-none"
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => {
-                                const updatedContent = e.target.innerText;
-                                setFileTree(prevFileTree => ({
-                                  ...prevFileTree,
-                                  [currentFile]: {
-                                    ...(prevFileTree[currentFile] || {}),
-                                    contents: updatedContent
-                                  }
-                                }));
-                              }}
-                              dangerouslySetInnerHTML={{ __html: hljs.highlight('javascript', fileTree[currentFile]?.contents || '').value }}
-                              style={{
-                                whiteSpace: 'pre-wrap',
-                                paddingBottom: '25rem',
-                                counterSet: 'line-numbering',
-                              }}
-                            />
-                          </pre>
-                        </div>
-                      )
-                    }
+
+                  <div className="actions flex gap-2">
+                    <button
+                      onClick={async () => {
+                        if (!fileTree || typeof fileTree !== 'object' || Object.keys(fileTree).length === 0) {
+                          console.error('File tree is empty or invalid');
+                          return;
+                        }
+
+                        console.log(JSON.stringify(fileTree, null, 2));
+                        const mountTree = prepareForWebContainer(fileTree)
+                        await webContainer.mount(mountTree)
+
+
+                        const installProcess = await webContainer.spawn("npm", ["install"])
+
+
+
+                        installProcess.output.pipeTo(new WritableStream({
+                          write(chunk) {
+                            console.log(chunk)
+                          }
+                        }))
+
+                        const runProcess = await webContainer.spawn("npm", ["start"])
+
+                        runProcess.output.pipeTo(new WritableStream({
+                          write(chunk) {
+                            console.log(chunk)
+                          }
+                        }))
+
+                        webContainer.on('server-ready', (port, url) => {
+                          console.log(port, url)
+                          setIframeUrl(url)
+                        })
+
+                      }}
+                      className='p-2 px-4 bg-slate-300 text-white'
+                    >
+                      run
+                    </button>
+
+
                   </div>
 
                 </div>
-              )}
+                <div className="bottom flex flex-grow max-w-full shrink overflow-auto">
+                  {
+                    fileTree[currentFile] && (
+                      <div className="code-editor-area h-full overflow-auto flex-grow bg-slate-50">
+                        <pre
+                          className="hljs h-full">
+                          <code
+                            className="hljs h-full outline-none"
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => {
+                              const updatedContent = e.target.innerText;
+                              setFileTree(prevFileTree => ({
+                                ...prevFileTree,
+                                [currentFile]: {
+                                  ...prevFileTree[currentFile],
+                                  contents: updatedContent
+                                }
+                              }));
+                            }}
+                            dangerouslySetInnerHTML={{ __html: hljs.highlight('javascript', fileTree[currentFile].contents).value }}
+                            style={{
+                              whiteSpace: 'pre-wrap',
+                              paddingBottom: '25rem',
+                              counterSet: 'line-numbering',
+                            }}
+                          />
+                        </pre>
+                      </div>
+                    )
+                  }
+                </div>
+
+
+              </div>
+
+              {iframeUrl && webContainer &&
+                    <iframe src={iframeUrl} className="w-1/2 h-full bg-slate-700"></iframe>
+                }
 
             </section>
           </div>
