@@ -4,6 +4,7 @@ import axiosInstance from '../config/axios'
 import { initializeSocket, receiveMessage, sendMessage, offMessage, disconnectSocket } from '../config/socket'
 import { UserContext } from '../context/User.context'
 import MarkdownRenderer from '../components/MarkdownRenderer'
+import hljs from 'highlight.js';
 
 const Project = () => {
   const location = useLocation()
@@ -55,17 +56,21 @@ const Project = () => {
     const socket = initializeSocket(project._id)
 
     const handleMessage = (data) => {
-      let incomingMessage = data.message
+      let incomingMessage = JSON.parse(data.message)
 
-      if (data.sender === 'ai' || data.sender?._id === 'ai' || data.senderEmail === 'AI' || data.senderName === 'AI') {
-        if (typeof incomingMessage === 'string') {
-          try {
-            incomingMessage = JSON.parse(incomingMessage)
-          } catch (err) {
-            // Keep original string if it's not valid JSON
-          }
-        }
+      if (incomingMessage.fileTree) {
+        setFileTree(message.fileTree)
       }
+
+      // if (data.sender === 'ai' || data.sender?._id === 'ai' || data.senderEmail === 'AI' || data.senderName === 'AI') {
+      //   if (typeof incomingMessage === 'string') {
+      //     try {
+      //       incomingMessage = JSON.parse(incomingMessage)
+      //     } catch (err) {
+      //       // Keep original string if it's not valid JSON
+      //     }
+      //   }
+      // }
 
       setMessages((current) => [...current, {
         senderId: data.sender,
@@ -313,9 +318,9 @@ const Project = () => {
           </section>
 
           <div className='hidden flex-1 lg:block' >
-            <section className="right  bg-red-50 flex-grow h-full flex">
+            <section className="right  bg-slate-600 flex-grow h-full flex">
 
-              <div className="explorer h-full max-w-64 min-w-52 bg-slate-200">
+              <div className="explorer h-full max-w-64 min-w-52 bg-slate-600">
                 <div className="file-tree w-full">
                   {
                     Object.keys(fileTree).map((file, index) => (
@@ -324,7 +329,7 @@ const Project = () => {
                           setCurrentFile(file)
                           setOpenFiles([...new Set([...openFiles, file])])
                         }}
-                        className="tree-element cursor-pointer p-2 px-4 flex items-center gap-2 bg-slate-300 w-full">
+                        className="tree-element cursor-pointer p-2 px-4 flex items-center gap-2 bg-slate-700 w-full">
                         <p
                           className='font-semibold text-lg'
                         >{file}</p>
@@ -343,7 +348,7 @@ const Project = () => {
                       openFiles.map((file, index) => (
                         <button
                           onClick={() => setCurrentFile(file)}
-                          className={`open-file cursor-pointer p-2 px-4 flex items-center w-fit gap-2 bg-slate-300 ${currentFile === file ? 'bg-slate-400' : ''}`}>
+                          className={`open-file cursor-pointer p-2 px-4 flex items-center w-fit gap-2 bg-slate-700 ${currentFile === file ? 'bg-slate-600' : ''}`}>
                           <p
                             className='font-semibold text-lg'
                           >{file}</p>
@@ -354,18 +359,44 @@ const Project = () => {
                   <div className="bottom flex flex-grow">
                     {
                       fileTree[currentFile] && (
-                        <textarea
-                          value={fileTree[currentFile].content}
-                          onChange={(e) => {
-                            setFileTree({
-                              ...fileTree,
-                              [currentFile]: {
-                                content: e.target.value
-                              }
-                            })
-                          }}
-                          className='w-full text-amber-500 h-full p-4 bg-slate-50 outline-none border-none'
-                        ></textarea>
+                        <div className="code-editor-area h-full overflow-auto flex-grow bg-slate-950">
+                                        <pre
+                                            className="hljs h-full">
+                                            <code
+                                                className="hljs h-full outline-none"
+                                                contentEditable
+                                                suppressContentEditableWarning
+                                                onBlur={(e) => {
+                                                    const updatedContent = e.target.innerText;
+                                                    setFileTree(prevFileTree => ({
+                                                        ...prevFileTree,
+                                                        [ currentFile ]: {
+                                                            ...prevFileTree[ currentFile ],
+                                                            content: updatedContent
+                                                        }
+                                                    }));
+                                                }}
+                                                dangerouslySetInnerHTML={{ __html: hljs.highlight('javascript', fileTree[ currentFile ].content).value }}
+                                                style={{
+                                                    whiteSpace: 'pre-wrap',
+                                                    paddingBottom: '25rem',
+                                                    counterSet: 'line-numbering',
+                                                }}
+                                            />
+                                        </pre>
+                                    </div>
+                        // <textarea
+                        //   value={fileTree[currentFile].content}
+                        //   onChange={(e) => {
+                        //     setFileTree({
+                        //       ...fileTree,
+                        //       [currentFile]: {
+                        //         content: e.target.value
+                        //       }
+                        //     })
+                        //   }}
+                        //   className='w-full text-amber-500 h-full p-4 bg-slate-50 outline-none border-none'
+                        // ></textarea>
                       )
                     }
                   </div>
