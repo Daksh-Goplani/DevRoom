@@ -5,6 +5,7 @@ import { initializeSocket, receiveMessage, sendMessage, offMessage, disconnectSo
 import { UserContext } from '../context/User.context'
 import MarkdownRenderer from '../components/MarkdownRenderer'
 import hljs from 'highlight.js';
+import { getWebContainer } from '../config/webcontainer'
 
 const Project = () => {
   const location = useLocation()
@@ -17,20 +18,61 @@ const Project = () => {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState([])
   const { user } = useContext(UserContext)
-  const [fileTree, setFileTree] = useState({
-    "app.js": {
-      content: `const express = require('express');`
-    },
-    "package.json": {
-      content: `{
-                        "name": "temp-server",
-                        }`
-    }
-  })
+  const [fileTree, setFileTree] = useState(null)
+  const [webContainer, setWebContainer] = useState(null)
+
+  // {
+  //   "app.js": {
+  //     contents: `const express = require('express');`
+  //   },
+  //   "package.json": {
+  //     contents: `{
+  //                       "name": "temp-server",
+  //                       }`
+  //   }
+  // }
 
   const [currentFile, setCurrentFile] = useState(null)
   const [openFiles, setOpenFiles] = useState([])
   const messageBox = useRef(null)
+
+  const normalizeFileTree = (tree) => {
+    if (!tree || typeof tree !== 'object') return null
+
+    return Object.entries(tree).reduce((acc, [fileName, fileData]) => {
+      if (!fileData || typeof fileData !== 'object') return acc
+
+      const entry = fileData.file && typeof fileData.file === 'object' ? fileData.file : fileData
+      const contents = typeof entry?.contents === 'string' ? entry.contents : ''
+
+      acc[fileName] = {
+        ...entry,
+        contents,
+      }
+
+      return acc
+    }, {})
+  }
+
+  const parseIncomingMessage = (message) => {
+    if (typeof message === 'string') {
+      try {
+        const parsed = JSON.parse(message)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed
+        }
+        return { text: parsed }
+      } catch {
+        return { text: message }
+      }
+    }
+
+    if (message && typeof message === 'object' && !Array.isArray(message)) {
+      return message
+    }
+
+    return { text: '' }
+  }
 
   useEffect(() => {
     const projectId = location.state?.project?._id
@@ -55,27 +97,26 @@ const Project = () => {
 
     const socket = initializeSocket(project._id)
 
-    const handleMessage = (data) => {
-      let incomingMessage = JSON.parse(data.message)
+    if (!webContainer) {
+      getWebContainer().then(container => {
+        setWebContainer(container)
+        console.log("container started")
+      })
+    }
 
-      if (incomingMessage.fileTree) {
-        setFileTree(message.fileTree)
+    const handleMessage = (data) => {
+      const incomingMessage = parseIncomingMessage(data.message)
+
+      if (incomingMessage?.fileTree && typeof incomingMessage.fileTree === 'object') {
+        setFileTree(normalizeFileTree(incomingMessage.fileTree))
       }
 
-      // if (data.sender === 'ai' || data.sender?._id === 'ai' || data.senderEmail === 'AI' || data.senderName === 'AI') {
-      //   if (typeof incomingMessage === 'string') {
-      //     try {
-      //       incomingMessage = JSON.parse(incomingMessage)
-      //     } catch (err) {
-      //       // Keep original string if it's not valid JSON
-      //     }
-      //   }
-      // }
+      webContainer?.mount(incomingMessage.fileTree)
 
       setMessages((current) => [...current, {
         senderId: data.sender,
-        senderName: data.senderName || data.senderEmail || data.sender.email || 'Unknown',
-        message: incomingMessage,
+        senderName: data.senderName || data.senderEmail || data.sender?.email || 'Unknown',
+        message: incomingMessage?.text || incomingMessage?.message || '',
         timestamp: data.timestamp || new Date().toISOString()
       }])
     }
@@ -111,6 +152,7 @@ const Project = () => {
     const payload = {
       projectId: project._id,
       sender: user._id,
+      senderId: user._id,
       senderEmail: user.email,
       senderName: user.name || user.email,
       message: message.trim(),
@@ -158,7 +200,7 @@ const Project = () => {
   }, [messages])
 
   const renderChatMessage = (msg, index) => {
-    const isOwnMessage = String(msg.sender) === String(user?._id);
+    const isOwnMessage = String(msg.senderId || msg.sender) === String(user?._id);
 
     return (
       <div
@@ -323,7 +365,7 @@ const Project = () => {
               <div className="explorer h-full max-w-64 min-w-52 bg-slate-600">
                 <div className="file-tree w-full">
                   {
-                    Object.keys(fileTree).map((file, index) => (
+                    Object.keys(fileTree || {}).map((file, index) => (
                       <button
                         onClick={() => {
                           setCurrentFile(file)
@@ -360,43 +402,31 @@ const Project = () => {
                     {
                       fileTree[currentFile] && (
                         <div className="code-editor-area h-full overflow-auto flex-grow bg-slate-950">
-                                        <pre
-                                            className="hljs h-full">
-                                            <code
-                                                className="hljs h-full outline-none"
-                                                contentEditable
-                                                suppressContentEditableWarning
-                                                onBlur={(e) => {
-                                                    const updatedContent = e.target.innerText;
-                                                    setFileTree(prevFileTree => ({
-                                                        ...prevFileTree,
-                                                        [ currentFile ]: {
-                                                            ...prevFileTree[ currentFile ],
-                                                            content: updatedContent
-                                                        }
-                                                    }));
-                                                }}
-                                                dangerouslySetInnerHTML={{ __html: hljs.highlight('javascript', fileTree[ currentFile ].content).value }}
-                                                style={{
-                                                    whiteSpace: 'pre-wrap',
-                                                    paddingBottom: '25rem',
-                                                    counterSet: 'line-numbering',
-                                                }}
-                                            />
-                                        </pre>
-                                    </div>
-                        // <textarea
-                        //   value={fileTree[currentFile].content}
-                        //   onChange={(e) => {
-                        //     setFileTree({
-                        //       ...fileTree,
-                        //       [currentFile]: {
-                        //         content: e.target.value
-                        //       }
-                        //     })
-                        //   }}
-                        //   className='w-full text-amber-500 h-full p-4 bg-slate-50 outline-none border-none'
-                        // ></textarea>
+                          <pre
+                            className="hljs h-full">
+                            <code
+                              className="hljs h-full outline-none"
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => {
+                                const updatedContent = e.target.innerText;
+                                setFileTree(prevFileTree => ({
+                                  ...prevFileTree,
+                                  [currentFile]: {
+                                    ...(prevFileTree[currentFile] || {}),
+                                    contents: updatedContent
+                                  }
+                                }));
+                              }}
+                              dangerouslySetInnerHTML={{ __html: hljs.highlight('javascript', fileTree[currentFile]?.contents || '').value }}
+                              style={{
+                                whiteSpace: 'pre-wrap',
+                                paddingBottom: '25rem',
+                                counterSet: 'line-numbering',
+                              }}
+                            />
+                          </pre>
+                        </div>
                       )
                     }
                   </div>
