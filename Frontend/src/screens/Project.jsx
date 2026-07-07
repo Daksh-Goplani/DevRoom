@@ -25,6 +25,7 @@ const Project = () => {
   const [openFiles, setOpenFiles] = useState([])
   const messageBox = useRef(null)
   const [iframeUrl, setIframeUrl] = useState(null)
+  const [runProcess, setRunProcess] = useState(null)
 
   const normalizeFileTree = (tree) => {
     if (!tree || typeof tree !== 'object') return null
@@ -217,6 +218,86 @@ const Project = () => {
     if (!messageBox.current) return
     messageBox.current.scrollTop = messageBox.current.scrollHeight
   }, [messages])
+
+  const updateFileContent = (fileName, updatedContent) => {
+    if (!fileName) return
+
+    setFileTree(prevFileTree => {
+      const previousEntry = prevFileTree[fileName] || {}
+      const previousFile = previousEntry.file && typeof previousEntry.file === 'object'
+        ? previousEntry.file
+        : {}
+
+      return {
+        ...prevFileTree,
+        [fileName]: {
+          ...previousEntry,
+          contents: updatedContent,
+          file: {
+            ...previousFile,
+            contents: updatedContent,
+          },
+        },
+      }
+    })
+  }
+
+  const activeFileContent = currentFile ? fileTree[currentFile]?.contents ?? '' : ''
+
+  const getHighlightedCode = (code = '') => {
+    if (!code) return ''
+
+    try {
+      return hljs.highlight(code, { language: 'javascript' }).value
+    } catch {
+      return code
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+    }
+  }
+
+  const highlightedCode = getHighlightedCode(activeFileContent)
+
+  const handleRunProject = async () => {
+    if (!fileTree || typeof fileTree !== 'object' || Object.keys(fileTree).length === 0) {
+      console.error('File tree is empty or invalid')
+      return
+    }
+
+    const container = webContainer || await getWebContainer()
+    setWebContainer(container)
+
+    const mountTree = prepareForWebContainer(fileTree)
+    await container.mount(mountTree)
+
+    const installProcess = await container.spawn('npm', ['install'])
+
+    installProcess.output.pipeTo(new WritableStream({
+      write(chunk) {
+        console.log(chunk)
+      }
+    }))
+
+    if (runProcess) {
+      runProcess.kill()
+    }
+
+    const tempRunProcess = await container.spawn('npm', ['start'])
+
+    tempRunProcess.output.pipeTo(new WritableStream({
+      write(chunk) {
+        console.log(chunk)
+      }
+    }))
+
+    setRunProcess(tempRunProcess)
+
+    container.on('server-ready', (port, url) => {
+      console.log(port, url)
+      setIframeUrl(url)
+    })
+  }
 
   const renderChatMessage = (msg, index) => {
     const isOwnMessage = String(msg.senderId || msg.sender) === String(user?._id);
@@ -423,41 +504,7 @@ const Project = () => {
 
                   <div className="actions flex gap-2">
                     <button
-                      onClick={async () => {
-                        if (!fileTree || typeof fileTree !== 'object' || Object.keys(fileTree).length === 0) {
-                          console.error('File tree is empty or invalid');
-                          return;
-                        }
-
-                        console.log(JSON.stringify(fileTree, null, 2));
-                        const mountTree = prepareForWebContainer(fileTree)
-                        await webContainer.mount(mountTree)
-
-
-                        const installProcess = await webContainer.spawn("npm", ["install"])
-
-
-
-                        installProcess.output.pipeTo(new WritableStream({
-                          write(chunk) {
-                            console.log(chunk)
-                          }
-                        }))
-
-                        const runProcess = await webContainer.spawn("npm", ["start"])
-
-                        runProcess.output.pipeTo(new WritableStream({
-                          write(chunk) {
-                            console.log(chunk)
-                          }
-                        }))
-
-                        webContainer.on('server-ready', (port, url) => {
-                          console.log(port, url)
-                          setIframeUrl(url)
-                        })
-
-                      }}
+                      onClick={handleRunProject}
                       className='p-2 px-4 bg-slate-300 text-white'
                     >
                       run
@@ -470,31 +517,21 @@ const Project = () => {
                 <div className="bottom flex flex-grow max-w-full shrink overflow-auto">
                   {
                     fileTree[currentFile] && (
-                      <div className="code-editor-area h-full overflow-auto flex-grow bg-slate-50">
+                      <div className="code-editor-area relative h-full flex-grow overflow-auto bg-slate-950">
                         <pre
-                          className="hljs h-full">
-                          <code
-                            className="hljs h-full outline-none"
-                            contentEditable
-                            suppressContentEditableWarning
-                            onBlur={(e) => {
-                              const updatedContent = e.target.innerText;
-                              setFileTree(prevFileTree => ({
-                                ...prevFileTree,
-                                [currentFile]: {
-                                  ...prevFileTree[currentFile],
-                                  contents: updatedContent
-                                }
-                              }));
-                            }}
-                            dangerouslySetInnerHTML={{ __html: hljs.highlight('javascript', fileTree[currentFile].contents).value }}
-                            style={{
-                              whiteSpace: 'pre-wrap',
-                              paddingBottom: '25rem',
-                              counterSet: 'line-numbering',
-                            }}
-                          />
-                        </pre>
+                          className="pointer-events-none h-full min-h-full w-full overflow-auto p-4 font-mono text-sm leading-6"
+                          style={{ whiteSpace: 'pre-wrap' }}
+                          dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                        />
+
+                        <textarea
+                          value={activeFileContent}
+                          onChange={(e) => updateFileContent(currentFile, e.target.value)}
+                          spellCheck={false}
+                          wrap="off"
+                          className="absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-4 font-mono text-sm leading-6 text-transparent caret-white outline-none"
+                          style={{ whiteSpace: 'pre-wrap' }}
+                        />
                       </div>
                     )
                   }
@@ -504,8 +541,15 @@ const Project = () => {
               </div>
 
               {iframeUrl && webContainer &&
-                    <iframe src={iframeUrl} className="w-1/2 h-full bg-slate-700"></iframe>
-                }
+                (<div className="flex min-w-96 flex-col h-full">
+                  <div className="address-bar">
+                    <input type="text"
+                      onChange={(e) => setIframeUrl(e.target.value)}
+                      value={iframeUrl} className="w-full p-2 px-4 bg-slate-200" />
+                  </div>
+                  <iframe src={iframeUrl} className="w-full h-full"></iframe>
+                </div>)
+              }
 
             </section>
           </div>
