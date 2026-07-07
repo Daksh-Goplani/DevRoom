@@ -20,12 +20,17 @@ const Project = () => {
   const { user } = useContext(UserContext)
   const [fileTree, setFileTree] = useState({})
   const [webContainer, setWebContainer] = useState(null)
+  const [draftContent, setDraftContent] = useState('')
 
   const [currentFile, setCurrentFile] = useState(null)
   const [openFiles, setOpenFiles] = useState([])
   const messageBox = useRef(null)
+  const editorRef = useRef(null)
+  const highlightRef = useRef(null)
   const [iframeUrl, setIframeUrl] = useState(null)
   const [runProcess, setRunProcess] = useState(null)
+  const [saveStatus, setSaveStatus] = useState('')
+  const hasLoadedProjectFileTree = useRef(false)
 
   const normalizeFileTree = (tree) => {
     if (!tree || typeof tree !== 'object') return null
@@ -103,8 +108,18 @@ const Project = () => {
   }, [location.state])
 
   useEffect(() => {
-    if (project?.file && typeof project.file === 'object') {
-      setFileTree(project.file)
+    const sourceTree = project?.fileTree && typeof project.fileTree === 'object'
+      ? project.fileTree
+      : project?.file && typeof project.file === 'object'
+        ? project.file
+        : {}
+
+    if (project?._id) {
+      setFileTree(sourceTree)
+      hasLoadedProjectFileTree.current = true
+    } else {
+      setFileTree({})
+      hasLoadedProjectFileTree.current = false
     }
   }, [project])
 
@@ -191,6 +206,25 @@ const Project = () => {
     }
   }
 
+  const saveFileTree = async (ft) => {
+    if (!project?._id || !hasLoadedProjectFileTree.current) return
+
+    try {
+      const normalizedTree = normalizeFileTree(ft)
+      const res = await axiosInstance.put('/projects/update-file-tree', {
+        projectId: project._id,
+        fileTree: normalizedTree
+      })
+
+      setProject(prevProject => prevProject ? { ...prevProject, fileTree: normalizedTree } : prevProject)
+      setSaveStatus('')
+      return res.data
+    } catch (err) {
+      console.error(err)
+      setSaveStatus('Save failed')
+    }
+  }
+
   if (!project) {
     return (
       <div className='min-h-screen bg-slate-950 px-6 py-10 text-slate-100'>
@@ -219,8 +253,43 @@ const Project = () => {
     messageBox.current.scrollTop = messageBox.current.scrollHeight
   }, [messages])
 
+  useEffect(() => {
+    if (!project?._id || !hasLoadedProjectFileTree.current || !currentFile) {
+      setSaveStatus('')
+      return
+    }
+
+    setSaveStatus('')
+    const timeoutId = setTimeout(() => {
+      saveFileTree(fileTree)
+    }, 700)
+
+    return () => clearTimeout(timeoutId)
+  }, [fileTree, project?._id, currentFile])
+
+  useEffect(() => {
+    if (!currentFile) {
+      setDraftContent('')
+      return
+    }
+
+    setDraftContent(fileTree[currentFile]?.contents ?? '')
+  }, [currentFile])
+
+  useEffect(() => {
+    if (!currentFile || !editorRef.current) return
+
+    requestAnimationFrame(() => {
+      editorRef.current?.focus()
+      const end = editorRef.current?.value?.length || 0
+      editorRef.current?.setSelectionRange(end, end)
+    })
+  }, [currentFile])
+
   const updateFileContent = (fileName, updatedContent) => {
     if (!fileName) return
+
+    setDraftContent(updatedContent)
 
     setFileTree(prevFileTree => {
       const previousEntry = prevFileTree[fileName] || {}
@@ -242,7 +311,44 @@ const Project = () => {
     })
   }
 
-  const activeFileContent = currentFile ? fileTree[currentFile]?.contents ?? '' : ''
+  const activeFileContent = currentFile ? draftContent : ''
+
+  const handleEditorInput = (event) => {
+    updateFileContent(currentFile, event.target.value)
+  }
+
+  const handleSaveCurrentFileTree = () => {
+    if (!currentFile) {
+      setSaveStatus('')
+      return
+    }
+
+    saveFileTree(fileTree)
+  }
+
+  const handleEditorKeyDown = (event) => {
+    if (event.key === 'Tab') {
+      event.preventDefault()
+      const textarea = event.currentTarget
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const nextValue = `${activeFileContent.slice(0, start)}  ${activeFileContent.slice(end)}`
+
+      updateFileContent(currentFile, nextValue)
+
+      requestAnimationFrame(() => {
+        textarea.selectionStart = start + 2
+        textarea.selectionEnd = start +2
+      })
+    }
+  }
+
+  const handleEditorScroll = () => {
+    if (highlightRef.current && editorRef.current) {
+      highlightRef.current.scrollTop = editorRef.current.scrollTop
+      highlightRef.current.scrollLeft = editorRef.current.scrollLeft
+    }
+  }
 
   const getHighlightedCode = (code = '') => {
     if (!code) return ''
@@ -338,7 +444,15 @@ const Project = () => {
 
   return (
     <main>
-      <div className='left min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_32%),linear-gradient(135deg,_#020617_0%,_#0f172a_45%,_#111827_100%)] py-4 text-slate-100 sm:px-2 lg:px-2'>
+      <style>{`
+        .editor-scroll-hide {
+          -ms-overflow-style: none;
+        }
+        .editor-scroll-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+      <div className='left scrollbar-none min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_32%),linear-gradient(135deg,_#020617_0%,_#0f172a_45%,_#111827_100%)] py-4 text-slate-100 sm:px-2 lg:px-2'>
         <div className='relative mx-auto flex h-[calc(100vh-2rem)] w-full overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/80 shadow-2xl shadow-cyan-500/10 backdrop-blur-xl'>
           <section
             className="relative flex w-full flex-col overflow-hidden lg:w-[30vw] lg:min-w-[360px]"
@@ -460,9 +574,9 @@ const Project = () => {
           </section>
 
           <div className='hidden flex-1 lg:block' >
-            <section className="right  bg-slate-600 flex-grow h-full flex">
+            <section className="right flex h-full flex-1 grow flex-row overflow-hidden bg-slate-800">
 
-              <div className="explorer h-full max-w-64 min-w-52 bg-slate-600">
+              <div className="explorer h-full w-56 shrink-0 border-r border-slate-700/80 bg-slate-800/90">
                 <div className="file-tree w-full">
                   {
                     Object.keys(fileTree || {}).map((file, index) => (
@@ -483,9 +597,9 @@ const Project = () => {
 
               </div>
 
-              <div className="code-editor flex flex-col flex-grow h-full">
+              <div className="code-editor flex h-full min-w-0 flex-1 flex-col bg-slate-900">
 
-                <div className="top flex justify-between w-full">
+                <div className="top flex w-full items-center justify-between border-b border-slate-700/80 bg-slate-900/95 px-3 py-2">
 
                   <div className="files flex">
                     {
@@ -502,35 +616,51 @@ const Project = () => {
                     }
                   </div>
 
-                  <div className="actions flex gap-2">
+                  <div className="actions flex items-center gap-2">
+                    <span className="text-xs text-slate-400">{saveStatus}</span>
+                    <button
+                      onClick={handleSaveCurrentFileTree}
+                      className='rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/20'
+                    >
+                      Save
+                    </button>
                     <button
                       onClick={handleRunProject}
-                      className='p-2 px-4 bg-slate-300 text-white'
+                      className='rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-400'
                     >
-                      run
+                      Run
                     </button>
-
-
                   </div>
 
                 </div>
-                <div className="bottom flex flex-grow max-w-full shrink overflow-auto">
+                <div className="bottom flex min-h-0 flex-1 overflow-auto">
                   {
                     fileTree[currentFile] && (
-                      <div className="code-editor-area relative h-full flex-grow overflow-auto bg-slate-950">
+                      <div className="code-editor-area scrollbar-none relative h-full min-h-0 flex-1 overflow-auto bg-slate-950">
                         <pre
-                          className="pointer-events-none h-full min-h-full w-full overflow-auto p-4 font-mono text-sm leading-6"
-                          style={{ whiteSpace: 'pre-wrap' }}
+                          ref={highlightRef}
+                          className="editor-scroll-hide pointer-events-none min-h-full w-full overflow-auto whitespace-pre wrap-break-word p-4 font-mono text-sm leading-6 text-slate-100"
+                          style={{ tabSize: 2, margin: 0 }}
                           dangerouslySetInnerHTML={{ __html: highlightedCode }}
                         />
 
                         <textarea
+                          ref={editorRef}
                           value={activeFileContent}
-                          onChange={(e) => updateFileContent(currentFile, e.target.value)}
+                          onInput={handleEditorInput}
+                          onKeyDown={handleEditorKeyDown}
+                          onScroll={handleEditorScroll}
                           spellCheck={false}
                           wrap="off"
-                          className="absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-4 font-mono text-sm leading-6 text-transparent caret-white outline-none"
-                          style={{ whiteSpace: 'pre-wrap' }}
+                          className="editor-scroll-hide absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-4 font-mono text-sm leading-6 text-transparent caret-cyan-400 outline-none"
+                          style={{
+                            whiteSpace: 'pre',
+                            // lineHeight: '1.5',
+                            // tabSize: 2,
+                            margin: 0,
+                            boxSizing: 'border-box',
+                            letterSpacing: 'normal',
+                          }}
                         />
                       </div>
                     )
@@ -541,13 +671,13 @@ const Project = () => {
               </div>
 
               {iframeUrl && webContainer &&
-                (<div className="flex min-w-96 flex-col h-full">
+                (<div className="flex min-w-[28rem] flex-col h-full">
                   <div className="address-bar">
                     <input type="text"
                       onChange={(e) => setIframeUrl(e.target.value)}
-                      value={iframeUrl} className="w-full p-2 px-4 bg-slate-200" />
+                      value={iframeUrl} className="w-full p-2 px-4 bg-slate-200 text-slate-900" />
                   </div>
-                  <iframe src={iframeUrl} className="w-full h-full"></iframe>
+                  <iframe src={iframeUrl} className="w-full bg-slate-400 h-full"></iframe>
                 </div>)
               }
 
@@ -568,7 +698,7 @@ const Project = () => {
             <div className='fixed inset-0 z-50 flex items-center justify-center px-4 py-6 sm:px-6 md:px-8'>
               <div className='w-full max-w-2xl rounded-3xl border border-white/10 bg-slate-900/95 shadow-2xl shadow-cyan-500/10 backdrop-blur-xl overflow-hidden flex flex-col max-h-[90vh]'>
                 {/* Modal Header */}
-                <div className='border-b border-white/10 bg-slate-950/70 px-5 py-4 flex-shrink-0'>
+                <div className='border-b border-white/10 bg-slate-950/70 px-5 py-4 shrink-0'>
                   <div className='flex items-center justify-between gap-3'>
                     <div>
                       <p className='text-xs uppercase tracking-[0.3em] text-cyan-400'>Users</p>
@@ -604,7 +734,7 @@ const Project = () => {
                               : 'border-white/10 bg-slate-950/50 hover:bg-slate-950/80'
                               }`}
                           >
-                            <div className='flex h-12 w-12 items-center justify-center rounded-full bg-cyan-500/15 text-sm font-semibold text-cyan-300 flex-shrink-0'>
+                            <div className='flex h-12 w-12 items-center justify-center rounded-full bg-cyan-500/15 text-sm font-semibold text-cyan-300 shrink-0'>
                               {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
                             </div>
                             <div className='flex-1 min-w-0'>
@@ -612,7 +742,7 @@ const Project = () => {
                               {/* <p className='text-xs text-slate-400 truncate'>{user?.email || 'No email'}</p> */}
                             </div>
                             {isSelected && (
-                              <div className='flex-shrink-0'>
+                              <div className='shrink-0'>
                                 <i className='ri-check-line text-cyan-400 text-xl'></i>
                               </div>
                             )}
@@ -626,7 +756,7 @@ const Project = () => {
                 </div>
 
                 {/* Modal Footer */}
-                <div className='border-t border-white/10 bg-slate-950/70 px-5 py-4 flex-shrink-0 flex gap-3 justify-end'>
+                <div className='border-t border-white/10 bg-slate-950/70 px-5 py-4 shrink-0 flex gap-3 justify-end'>
                   <button
                     onClick={() => {
                       setSelectedUserIds([])
