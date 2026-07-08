@@ -34,7 +34,6 @@ const getAllProjectByUserId = async ({ userId }) => {
 }
 
 const addUsersToProject = async ({ projectId, users, userId }) => {
-    console.log(projectId, users, userId)
     if (!projectId) {
         throw new Error("Project Id is required")
     }
@@ -60,7 +59,6 @@ const addUsersToProject = async ({ projectId, users, userId }) => {
         users: userId
     })
 
-    console.log(project)
 
     if (!project) {
         throw new Error("User not belong to this project")

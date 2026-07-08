@@ -12,7 +12,6 @@ const projectControlle = async (req, res) => {
     }
 
     try {
-        console.log(req.user, 'user')
         const { name } = req.body
         const loggedInUser = await userModel.findOne({ email: req.user.email })
         const userId = loggedInUser._id

@@ -18,7 +18,6 @@ const UserAuth = ({children}) => {
           if (!mounted) return
           if (res?.data?.user) {
             setUser(res.data.user)
-            console.log(res.data.user, 'setuser')
             setLoading(false)
             return
           }

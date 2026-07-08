@@ -5,7 +5,7 @@ import { initializeSocket, receiveMessage, sendMessage, offMessage, disconnectSo
 import { UserContext } from '../context/User.context'
 import MarkdownRenderer from '../components/MarkdownRenderer'
 import hljs from 'highlight.js';
-import { getWebContainer } from '../config/webcontainer'
+import { getWebContainer } from '../config/webContainer'
 
 const Project = () => {
   const location = useLocation()
