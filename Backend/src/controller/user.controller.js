@@ -15,11 +15,11 @@ const createUserController = async (req, res) => {
         const user = await userService.createUser(req.body)
         const token = await user.generateJWT()
 
-        res.cookie('token', token, {
+        res.cookie("token", token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 24 * 60 * 60 * 1000
+            secure: true,
+            sameSite: "none",
+            maxAge: 24 * 60 * 60 * 1000,
         })
 
         delete user._doc.password
@@ -68,12 +68,12 @@ const loginController = async (req, res) => {
 
         const token = await user.generateJWT()
 
-        res.cookie('token', token, {
+        res.cookie("token", token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 24 * 60 * 60 * 1000
-        })
+            secure: true,
+            sameSite: "none",
+            maxAge: 24 * 60 * 60 * 1000,
+        });
 
         delete user._doc.password
 
